@@ -3,7 +3,7 @@ import pandas as pd
 
 # Matplotlib
 import matplotlib.pyplot as plt
-%matplotlib inline
+#%matplotlib inline
 
 import sklearn
 import matplotlib
@@ -66,7 +66,7 @@ df.head()
 
 df.columns = ["Label", "people_id", "Date", "query", "user", "Tweet"] # give column names
 #data
- df.head()
+df.head()
 
 df = df.drop(['people_id', 'Date', 'query', 'user'], axis=1)
 df.head()
