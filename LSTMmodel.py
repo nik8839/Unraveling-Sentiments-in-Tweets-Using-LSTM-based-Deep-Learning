@@ -84,3 +84,78 @@ plt.bar(target_cnt.keys(), target_cnt.values())
 plt.title("Dataset labels distribuition")
 
 df.describe()
+
+decode_map = {0: "NEGATIVE", 4: "POSITIVE"}
+def decode_sentiment(label):
+    return decode_map[int(label)]
+df.Label = df.Label.apply(lambda x: decode_sentiment(x))
+df.head()
+
+df.info() #printing information
+
+df['Label'].unique() #unique labels
+
+df.head()
+
+plt.boxplot(df.Length_of_Tweet) # plotting pre_clean_len column
+plt.show()
+
+import random
+random_idx_list = [random.randint(1,len(df.Label)) for i in range(10)] # creates random indexes to choose from dataframe
+df.loc[random_idx_list,:].head(10) # Returns the rows with the index and display it
+
+df[df.Length_of_Tweet > 350].head(10)
+
+stop_words = stopwords.words('english') #list of stopwords
+stemmer = SnowballStemmer('english')
+
+text_cleaning_re = "@\S+|https?:\S+|http?:\S|[^A-Za-z0-9]+"
+
+def preprocess(text, stem=False):
+  text = re.sub(text_cleaning_re, ' ', str(text).lower()).strip()
+  tokens = []
+  for token in text.split():
+    if token not in stop_words: #discarding stopwords
+      if stem:
+        tokens.append(stemmer.stem(token))
+      else:
+        tokens.append(token)
+  return " ".join(tokens)
+
+df.Tweet = df.Tweet.apply(lambda x: preprocess(x))
+
+df.head()
+
+from wordcloud import WordCloud
+
+plt.figure(figsize = (20,20)) 
+wc = WordCloud(max_words = 2000 , width = 1600 , height = 800).generate(" ".join(df[df.Label == 'POSITIVE'].Tweet))
+plt.imshow(wc , interpolation = 'bilinear')
+
+
+plt.figure(figsize = (20,20)) 
+wc = WordCloud(max_words = 2000 , width = 1600 , height = 800).generate(" ".join(df[df.Label == 'NEGATIVE'].Tweet))
+plt.imshow(wc , interpolation = 'bilinear')
+
+TRAIN_SIZE = 0.85
+MAX_NB_WORDS = 100000
+MAX_SEQUENCE_LENGTH = 50
+
+train_data, test_data = train_test_split(df, test_size=1-TRAIN_SIZE,
+                                         random_state=1) # Splits Dataset into Training and Testing set
+print("Train Data size:", len(train_data))
+print("Test Data size", len(test_data))
+
+train_data.head(20)
+
+test_data.head(20)
+
+#%%time
+from keras.preprocessing.text import Tokenizer #preprocessing text using tokenization
+
+tokenizer = Tokenizer()
+tokenizer.fit_on_texts(train_data.Tweet)
+
+word_index = tokenizer.word_index
+vocab_size = len(tokenizer.word_index) + 1
+print("Vocabulary Size :", vocab_size)
