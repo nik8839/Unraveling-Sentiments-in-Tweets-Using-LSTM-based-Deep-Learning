@@ -269,6 +269,127 @@ embedding_layer = Embedding(vocab_size, W2V_SIZE, weights=[embedding_matrix], in
 
 
 
+model = Sequential()
+model.add(embedding_layer)
+model.add(Dropout(0.5))
+model.add(LSTM(100, dropout=0.2, recurrent_dropout=0.2))
+model.add(Dense(1, activation='sigmoid'))
+
+model.summary()
+
+model.compile(loss='binary_crossentropy',
+              optimizer="adam",
+              metrics=['accuracy'])
+
+callbacks = [ ReduceLROnPlateau(monitor='val_loss', patience=5, cooldown=0),
+              EarlyStopping(monitor='val_acc', min_delta=1e-4, patience=5)]
+
+# %%time
+history = model.fit(x_train, y_train,
+                    batch_size=1024,
+                    epochs=15,
+                    validation_split=0.1,
+                    verbose=1,
+                    callbacks=callbacks)
+
+# %%time
+score = model.evaluate(x_test, y_test, batch_size=1024)
+print()
+print("ACCURACY:",score[1])
+print("LOSS:",score[0])
+
+acc = history.history['accuracy']
+val_acc = history.history['val_accuracy']
+loss = history.history['loss']
+val_loss = history.history['val_loss']
+epochs = range(len(acc))
+
+plt.plot(epochs, acc, 'b', label='Training acc')
+plt.plot(epochs, val_acc, 'r', label='Validation acc')
+plt.title('Training and validation accuracy')
+plt.legend()
+ 
+plt.figure()
+ 
+plt.plot(epochs, loss, 'b', label='Training loss')
+plt.plot(epochs, val_loss, 'r', label='Validation loss')
+plt.title('Training and validation loss')
+plt.legend()
+ 
+plt.show()
+
+def decode_sentiment(score, include_neutral=True):
+    if include_neutral:        
+        label = NEUTRAL
+        if score <= SENTIMENT_THRESHOLDS[0]:
+            label = NEGATIVE
+        elif score >= SENTIMENT_THRESHOLDS[1]:
+            label = POSITIVE
+
+        return label
+    else:
+        return NEGATIVE if score < 0.5 else POSITIVE
+
+# SENTIMENT
+POSITIVE = "POSITIVE"
+NEGATIVE = "NEGATIVE"
+NEUTRAL = "NEGATIVE"
+SENTIMENT_THRESHOLDS = (0.4, 0.7)
+
+def predict(text, include_neutral=True):
+    start_at = time.time()
+    # Tokenize text
+    x_test = pad_sequences(tokenizer.texts_to_sequences([text]), maxlen=MAX_SEQUENCE_LENGTH)
+    # Predict
+    score = model.predict([x_test])[0]
+    # Decode sentiment
+    label = decode_sentiment(score, include_neutral=include_neutral)
+
+    return {"label": label, "score": float(score),
+       "elapsed_time": time.time()-start_at} 
+
+predict("healthy discussion")
+
+model.save("history.h5")
+
+# %%time
+y_pred_1d = []
+y_test_1d = list(test_data.Label)
+scores = model.predict(x_test)
+y_pred_1d = [decode_sentiment(score, include_neutral=False) for score in scores]
+
+def plot_confusion_matrix(cm, classes,
+                          title='Confusion matrix',cmap=plt.cm.Blues):
+  
+   
+
+    cm = cm.astype('float') / cm.sum(axis=1)[:, np.newaxis]
+
+    plt.imshow(cm, interpolation='nearest', cmap=cmap)
+    plt.title(title, fontsize=30)
+    plt.colorbar()
+    tick_marks = np.arange(len(classes))
+    plt.xticks(tick_marks, classes, rotation=90, fontsize=22)
+    plt.yticks(tick_marks, classes, fontsize=22)
+
+    fmt = '.2f'
+    thresh = cm.max() / 2.
+    for i, j in itertools.product(range(cm.shape[0]), range(cm.shape[1])):
+        plt.text(j, i, format(cm[i, j], fmt),
+                 horizontalalignment="center",
+                 color="white" if cm[i, j] > thresh else "black")
+
+    plt.ylabel('True label', fontsize=25)
+    plt.xlabel('Predicted label', fontsize=25)
+
+cnf_matrix = confusion_matrix(y_test_1d, y_pred_1d)
+plt.figure(figsize=(12,12))
+plot_confusion_matrix(cnf_matrix, classes=train_data.Label.unique(), title="Confusion matrix")
+plt.show()
+
+print(classification_report(y_test_1d, y_pred_1d))
+
+accuracy_score(y_test_1d, y_pred_1d)
 
 
 
