@@ -159,3 +159,118 @@ tokenizer.fit_on_texts(train_data.Tweet)
 word_index = tokenizer.word_index
 vocab_size = len(tokenizer.word_index) + 1
 print("Vocabulary Size :", vocab_size)
+
+
+
+#%%time
+x_train = pad_sequences(tokenizer.texts_to_sequences(train_data.Tweet), maxlen=MAX_SEQUENCE_LENGTH)
+x_test = pad_sequences(tokenizer.texts_to_sequences(test_data.Tweet), maxlen=MAX_SEQUENCE_LENGTH)
+print("Training X Shape:",x_train.shape)
+print("Testing X Shape:",x_test.shape)
+
+
+
+#Label Encoder
+encoder = LabelEncoder()
+encoder.fit(train_data.Label.to_list())
+
+y_train = encoder.transform(train_data.Label.to_list())
+y_test = encoder.transform(test_data.Label.to_list())
+
+y_train = y_train.reshape(-1,1)
+y_test = y_test.reshape(-1,1)
+
+print("y_train shape:", y_train.shape)
+print("y_test shape:", y_test.shape)
+
+
+
+print("x_train", x_train.shape)
+print("y_train", y_train.shape)
+print()
+print("x_test", x_test.shape)
+print("y_test", y_test.shape)
+
+y_train = y_train.reshape(-1,1)
+y_test = y_test.reshape(-1,1)
+
+print("y_train shape:", y_train.shape)
+print("y_test shape:", y_test.shape)
+
+
+
+# WORD2VEC 
+W2V_SIZE = 300
+W2V_WINDOW = 7
+W2V_EPOCH = 32
+W2V_MIN_COUNT = 10
+
+
+#%%time
+documents = [_text.split() for _text in train_data.Tweet] 
+import gensim.models.word2vec
+
+
+
+
+w2v_model = gensim.models.word2vec.Word2Vec(vector_size=W2V_SIZE, 
+                                            window=W2V_WINDOW, 
+                                            min_count=W2V_MIN_COUNT, 
+                                            workers=8)
+
+
+w2v_model.build_vocab(documents)
+
+
+
+
+words = list(w2v_model.wv.key_to_index.keys())
+vocab_size = len(words)
+print("Vocab size", vocab_size)
+
+
+#%%time
+w2v_model.train(documents, total_examples=len(documents), epochs=W2V_EPOCH)
+
+
+
+similar_words = w2v_model.wv.most_similar("heat")
+print(similar_words)
+
+
+
+print("Tokenizer Vocabulary Size:", len(tokenizer.word_index))
+print("Word2Vec Model Vocabulary Size:", len(w2v_model.wv))
+
+
+
+
+# Get the common vocabulary between tokenizer and Word2Vec model
+common_vocab = set(tokenizer.word_index.keys()) & set(w2v_model.wv.key_to_index.keys())
+
+# Create a mapping from words to indices in the common vocabulary
+word_to_index = {word: i + 1 for i, word in enumerate(common_vocab)}  # Add 1 to start index from 1
+
+# Update tokenizer's word_index using the common vocabulary
+tokenizer.word_index = word_to_index
+
+# Create the embedding matrix
+vocab_size = len(tokenizer.word_index) + 1  # Add 1 to account for the 0 index
+embedding_matrix = np.zeros((vocab_size, W2V_SIZE))
+
+for word, i in tokenizer.word_index.items():
+    if word in w2v_model.wv:
+        embedding_matrix[i] = w2v_model.wv[word]
+
+
+
+
+embedding_layer = Embedding(vocab_size, W2V_SIZE, weights=[embedding_matrix], input_length=MAX_SEQUENCE_LENGTH, trainable=False)
+
+
+
+
+
+
+
+
